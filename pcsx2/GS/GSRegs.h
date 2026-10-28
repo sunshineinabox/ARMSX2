@@ -77,7 +77,8 @@ enum GIF_REG_COMPLEX
 	GIF_REG_UVXYZ2 = 0x04,
 	GIF_REG_RGBAQXYZ2 = 0x05,
 	GIF_REG_UVRGBAQXYZF2 = 0x06,
-	GIF_REG_COMPLEX_COUNT = 0x07,
+	GIF_REG_NOPSTQRGBAXYZ2 = 0x07,
+	GIF_REG_COMPLEX_COUNT = 0x08,
 };
 
 enum GIF_A_D_REG
@@ -1169,6 +1170,8 @@ struct alignas(32) GIFPath
 		// {UV, RGBAQ, XYZF2}, contiguous or NOP-padded: ST and the latched Q are
 		// carried, the UV and the colour come from the record.
 		TYPE_UVRGBAQXYZF2,
+		// {ST, RGBAQ, XYZ2} with NOPs between, used for triangle strips.
+		TYPE_NOPSTQRGBAXYZ2,
 	};
 
 	static_assert(TYPE_STQRGBAXYZF2 - TYPE_STQRGBAXYZF2 == GIF_REG_STQRGBAXYZF2);
@@ -1178,6 +1181,7 @@ struct alignas(32) GIFPath
 	static_assert(TYPE_UVXYZ2 - TYPE_STQRGBAXYZF2 == GIF_REG_UVXYZ2);
 	static_assert(TYPE_RGBAQXYZ2 - TYPE_STQRGBAXYZF2 == GIF_REG_RGBAQXYZ2);
 	static_assert(TYPE_UVRGBAQXYZF2 - TYPE_STQRGBAXYZF2 == GIF_REG_UVRGBAQXYZF2);
+	static_assert(TYPE_NOPSTQRGBAXYZ2 - TYPE_STQRGBAXYZF2 == GIF_REG_NOPSTQRGBAXYZ2);
 
 	__forceinline void SetTag(const void* mem)
 	{

@@ -183,6 +183,7 @@ namespace GSVertexKernels
 		PairUVXYZ2,     // {UV, XYZ2}: ST, colour and Q carried
 		PairRGBAQXYZ2,  // {RGBAQ, XYZ2}: ST carried, Q from the latch
 		UvTripleXYZF2,  // {UV, RGBAQ, XYZF2}, contiguous or NOP-padded: ST carried, Q from the latch
+		NopTripleXYZ2,  // {ST, RGBAQ, XYZ2} with NOP descriptors between them
 	};
 
 	constexpr bool LayoutIsXYZF2(PackedLayout l)
@@ -197,7 +198,7 @@ namespace GSVertexKernels
 	// The {ST, RGBAQ, XYZ} triples: every field of m[0] comes from the record.
 	constexpr bool LayoutIsTriple(PackedLayout l)
 	{
-		return LayoutIsContiguousTriple(l) || l == PackedLayout::NopTripleXYZF2;
+		return LayoutIsContiguousTriple(l) || l == PackedLayout::NopTripleXYZF2 || l == PackedLayout::NopTripleXYZ2;
 	}
 	// Whether the record carries an RGBAQ descriptor beside its first one.
 	constexpr bool LayoutHasSeparateRgba(PackedLayout l)
@@ -326,7 +327,8 @@ namespace GSVertexKernels
 
 			if constexpr (LayoutIsTriple(L))
 			{
-				static_assert(L == PackedLayout::NopTripleXYZF2, "the contiguous triples took the branch above");
+				static_assert(L == PackedLayout::NopTripleXYZF2 || L == PackedLayout::NopTripleXYZ2,
+					"the contiguous triples took the branch above");
 
 				const GSVector4i st = GSVector4i::loadl(&rv[off_a].U64[0]);
 				GSVector4i q = GSVector4i::loadl(&rv[off_a].U64[1]);
@@ -402,7 +404,8 @@ namespace GSVertexKernels
 			// m[0].
 			if constexpr (LayoutIsTriple(L))
 			{
-				static_assert(L == PackedLayout::NopTripleXYZF2, "the contiguous triples took the branches above");
+				static_assert(L == PackedLayout::NopTripleXYZF2 || L == PackedLayout::NopTripleXYZ2,
+					"the contiguous triples took the branches above");
 
 				const uint8x16x2_t st_rgba = {vld1q_u8(reinterpret_cast<const u8*>(rv + off_a)),
 					vld1q_u8(reinterpret_cast<const u8*>(rv + LayoutOffRgba<L>(off)))};
