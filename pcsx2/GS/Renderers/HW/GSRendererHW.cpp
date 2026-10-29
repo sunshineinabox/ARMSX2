@@ -4080,24 +4080,31 @@ void GSRendererHW::Draw()
 
 			// If this is a partial clear of a larger buffer, we can't invalidate the target, since we'll be losing data
 			// which only existed on the GPU. Assume a BW change is a new target, though. Test case: Persona 3 shadows.
-			GSTextureCache::Target* tgt;
+			GSTextureCache::Target* rt_tgt = nullptr;
+			GSTextureCache::Target* ds_tgt = nullptr;
 			const bool overwriting_whole_rt =
 				(no_rt || height_invalid ||
-					(tgt = g_texture_cache->GetExactTarget(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW,
+					(rt_tgt = g_texture_cache->GetExactTarget(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW,
 						 GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
-					m_r.rintersect(tgt->m_valid).eq(tgt->m_valid));
+					m_r.rintersect(rt_tgt->m_valid).eq(rt_tgt->m_valid));
 			const bool overwriting_whole_ds =
 				(no_ds || height_invalid ||
-					(tgt = g_texture_cache->GetExactTarget(m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW,
+					(ds_tgt = g_texture_cache->GetExactTarget(m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW,
 						 GSTextureCache::DepthStencil, ds_end_bp)) == nullptr ||
-					m_r.rintersect(tgt->m_valid).eq(tgt->m_valid));
+					m_r.rintersect(ds_tgt->m_valid).eq(ds_tgt->m_valid));
+
+			// If every buffer this clear writes has a target that it fully covers, clear the targets on the GPU
+			// (TryTargetClear) instead of writing local memory and dropping them.
+			const bool clear_live_targets_on_gpu = !height_invalid && (!no_rt || !no_ds) && (no_rt || rt_tgt) &&
+				(no_ds || ds_tgt) && overwriting_whole_rt && overwriting_whole_ds;
+			const bool clear_in_memory = overwriting_whole_rt && overwriting_whole_ds && !clear_live_targets_on_gpu;
 
 			if (g_texture_cache->GetTemporaryZ() != nullptr && ((m_cached_ctx.FRAME.FBMSK != 0xFFFFFFFF && m_cached_ctx.FRAME.Block() == g_texture_cache->GetTemporaryZInfo().ZBP) || (!m_cached_ctx.ZBUF.ZMSK && m_cached_ctx.ZBUF.Block() == g_texture_cache->GetTemporaryZInfo().ZBP)))
 			{
 				g_texture_cache->InvalidateTemporaryZ();
 			}
-			gs_mem_cleared |= overwriting_whole_rt && overwriting_whole_ds && (!no_rt || !no_ds);
-			if (overwriting_whole_rt && overwriting_whole_ds &&
+			gs_mem_cleared |= clear_in_memory && (!no_rt || !no_ds);
+			if (clear_in_memory &&
 				TryGSMemClear(no_rt, preserve_rt_color, is_full_color_cover, rt_end_bp,
 					no_ds, preserve_depth, is_full_depth_cover, ds_end_bp))
 			{
