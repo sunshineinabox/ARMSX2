@@ -65,6 +65,10 @@
 #include <cmath>
 #include <csignal>
 
+#if defined(__linux__) && defined(__GLIBC__)
+#include <malloc.h>
+#endif
+
 static constexpr u32 SETTINGS_SAVE_DELAY = 1000;
 static constexpr const char* RUNTIME_RESOURCES_URL =
 	"https://github.com/PCSX2/pcsx2-windows-dependencies/releases/download/runtime-resources/";
@@ -2466,6 +2470,13 @@ public:
 int main(int argc, char* argv[])
 {
 	CrashHandler::Install();
+
+#if defined(__linux__) && defined(__GLIBC__)
+	// Use a single glibc heap arena to save memory on low-RAM hosts. Must be set before any thread starts.
+	const u64 physical_memory = GetPhysicalMemory();
+	if (physical_memory != 0 && physical_memory < Pcsx2Config::LOW_MEMORY_HOST_BYTES)
+		mallopt(M_ARENA_MAX, 1);
+#endif
 
 // Exceptions are disabled, so we can't try/catch this.
 // Timestamps in some locales showed up wrong on Windows.

@@ -3,6 +3,7 @@
 
 #include "common/CocoaTools.h"
 #include "common/FileSystem.h"
+#include "common/HostSys.h"
 #include "common/MemorySettingsInterface.h"
 #include "common/Path.h"
 #include "common/SettingsInterface.h"
@@ -493,7 +494,9 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	EnableFastmem = true;
 	PauseOnTLBMiss = false;
 	EnableVUProgramCache = false; // default off; opt-in until the on-disk cache is validated on the target hardware
-	EnableVUAot = true; // default on (arm64 builds; the setting is ignored elsewhere); it also turns the VU program cache on
+	// On by default (arm64 only), except on low-RAM hosts. Also turns on the VU program cache.
+	static const u64 s_physical_memory = GetPhysicalMemory();
+	EnableVUAot = DefaultVUAot(s_physical_memory);
 
 	// vu and fpu clamping default to standard overflow.
 	vu0Overflow = true;

@@ -1,15 +1,14 @@
 // SPDX-FileCopyrightText: 2026 ARMSX2 Dev Team
 // SPDX-License-Identifier: GPL-3.0+
 
-// The vu-aot setting (EmuCore/CPU/Recompiler EnableVUAot) is on by default, and turns the VU program cache
-// on with it; the program cache's own setting (EnableVUProgramCache) stays off by default. The setting is
-// in the shared configuration, so a build without the arm64 recompilers reads and writes it too, and
-// nothing there looks at it.
+// vu-aot defaults on (off under 2 GB of RAM) and turns on the VU program cache; the cache's own
+// setting stays off.
 
 #include <gtest/gtest.h>
 
 #include "Config.h"
 
+#include "common/HostSys.h"
 #include "common/MemorySettingsInterface.h"
 #include "common/SettingsWrapper.h"
 
@@ -24,18 +23,30 @@ namespace
 	}
 } // namespace
 
-TEST(VuAotSetting, DefaultsOnAndTheProgramCacheSettingStaysOff)
+TEST(VuAotSetting, DefaultsOffOnlyBelowTwoGigabytesOfRam)
+{
+	using RC = Pcsx2Config::RecompilerOptions;
+	constexpr u64 GB = 1ull << 30;
+	EXPECT_FALSE(RC::DefaultVUAot(GB)) << "the RG DS: 975 MB";
+	EXPECT_FALSE(RC::DefaultVUAot(2 * GB - 1));
+	EXPECT_TRUE(RC::DefaultVUAot(2 * GB));
+	EXPECT_TRUE(RC::DefaultVUAot(4 * GB)) << "the MANGMI Air X: 3.6 GB";
+	EXPECT_TRUE(RC::DefaultVUAot(16 * GB));
+	EXPECT_TRUE(RC::DefaultVUAot(0)) << "RAM the host could not report keeps the old default";
+}
+
+TEST(VuAotSetting, DefaultsByThisHostsRamAndTheProgramCacheSettingStaysOff)
 {
 	const Pcsx2Config::RecompilerOptions rc;
-	EXPECT_TRUE(rc.EnableVUAot);
+	EXPECT_EQ(rc.EnableVUAot, Pcsx2Config::RecompilerOptions::DefaultVUAot(GetPhysicalMemory()));
 	EXPECT_FALSE(rc.EnableVUProgramCache);
-	EXPECT_TRUE(rc.UseVUProgramCache()) << "vu-aot is bound to the cache";
+	EXPECT_EQ(rc.UseVUProgramCache(), rc.EnableVUAot) << "vu-aot is bound to the cache";
 }
 
 TEST(VuAotSetting, ASettingsFileWithoutTheKeyGetsTheDefault)
 {
 	MemorySettingsInterface si;
-	EXPECT_TRUE(Load(si).EnableVUAot);
+	EXPECT_EQ(Load(si).EnableVUAot, Pcsx2Config::RecompilerOptions().EnableVUAot);
 	EXPECT_FALSE(Load(si).EnableVUProgramCache);
 }
 

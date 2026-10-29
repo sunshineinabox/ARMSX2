@@ -740,6 +740,9 @@ struct TraceLogFilters
 //
 struct Pcsx2Config
 {
+	// Hosts with less RAM than this get the memory-saving defaults (no vu-aot, one heap arena).
+	static constexpr u64 LOW_MEMORY_HOST_BYTES = 2ull << 30;
+
 	struct ProfilerOptions
 	{
 		BITFIELD32()
@@ -806,11 +809,18 @@ struct Pcsx2Config
 		// vu-aot, the whole-program VU1 compiler (pcsx2/arm64/vuaot/): programs
 		// that run often enough are recompiled above microVU, which stays the
 		// fallback at every block boundary. arm64-only; no-op on x86. Default
-		// on. It turns the VU program cache on (UseVUProgramCache()), which
-		// keeps the compiled code on disk for the next session.
+		// on, except on a host with little RAM (DefaultVUAot). It turns the VU
+		// program cache on (UseVUProgramCache()), which keeps the compiled code
+		// on disk for the next session.
 		bool
 			EnableVUAot : 1;
 		BITFIELD_END
+
+		// EnableVUAot's default for `physical_memory` bytes of RAM (0 if unknown): off below LOW_MEMORY_HOST_BYTES.
+		static constexpr bool DefaultVUAot(u64 physical_memory)
+		{
+			return physical_memory == 0 || physical_memory >= LOW_MEMORY_HOST_BYTES;
+		}
 
 		// Whether the on-disk VU program cache runs: EnableVUProgramCache, or EnableVUAot
 		// (vu-aot is bound to the cache; there is no separate switch). Read the cache

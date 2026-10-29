@@ -31,7 +31,8 @@ AdvancedSettingsWidget::AdvancedSettingsWidget(SettingsWindow* settings_dialog, 
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.vuFlagHack, "EmuCore/Speedhacks", "vuFlagHack", true);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.instantVU1, "EmuCore/Speedhacks", "vu1Instant", true);
 	// vu-aot only exists in the ARM64 recompilers. The setting is read and written everywhere, and does nothing elsewhere.
-	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.vuAot, "EmuCore/CPU/Recompiler", "EnableVUAot", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(
+		sif, m_ui.vuAot, "EmuCore/CPU/Recompiler", "EnableVUAot", Pcsx2Config::RecompilerOptions().EnableVUAot);
 #ifndef ARCH_ARM64
 	m_ui.vuAot->hide();
 #endif

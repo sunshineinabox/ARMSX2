@@ -2719,7 +2719,7 @@ void FullscreenUI::DrawEmulationSettingsPage()
 #ifdef ARCH_ARM64
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_MICROCHIP, "Enable VU1 Ahead-of-Time Compiler"),
 		FSUI_CSTR("Optimises VU1 programs in the background and keeps the compiled VU code on disk, so later launches start with it. Faster in games that spend much of their time in VU1. Turning it off clears the compiled cache."),
-		"EmuCore/CPU/Recompiler", "EnableVUAot", true);
+		"EmuCore/CPU/Recompiler", "EnableVUAot", Pcsx2Config::RecompilerOptions().EnableVUAot);
 #endif
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_LOCATION_PIN_LOCK, "Enable Thread Pinning"),
 		FSUI_CSTR("Pins emulation threads to CPU cores to potentially improve performance/frame time variance."),
