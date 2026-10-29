@@ -43,4 +43,5 @@
 // 128: every backend's tfx shader gains PS_REPLACEMENT_ALPHA_SNAP (pack texture alpha near 0x80).
 // 129: the Vulkan expanded-line vertex shader pairs a line's two ends by index (top reads +1, bottom
 // reads -1) on every device and drops the VS_PROVOKING_VERTEX_LAST define.
-static constexpr u32 SHADER_CACHE_VERSION = 129;
+// 130: Vulkan shaders take texture sizes from push constants instead of textureSize().
+static constexpr u32 SHADER_CACHE_VERSION = 130;
