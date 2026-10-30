@@ -1008,6 +1008,7 @@ public:
 	void SetUtilityTexture(GSTexture* tex, VkSampler sampler);
 	void SetUtilityPushConstants(const void* data, u32 size);
 	void UnbindTexture(GSTextureVK* tex);
+	void LeaveTargetReadyToSample(GSTextureVK* rt);
 
 	// Ends a render pass if we're currently in one.
 	// When Bind() is next called, the pass will be restarted.

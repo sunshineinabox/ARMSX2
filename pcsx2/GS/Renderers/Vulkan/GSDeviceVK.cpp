@@ -5752,6 +5752,25 @@ void GSDeviceVK::VSSetIndexBuffer(const void* index, size_t count)
 	m_index_range_valid = false;
 }
 
+// On Mali, move a target to the sampled layout when its pass ends, so sampling it later doesn't break a
+// render pass for the barrier. Its next pass moves it back.
+void GSDeviceVK::LeaveTargetReadyToSample(GSTextureVK* rt)
+{
+	if (rt->GetLayout() != GSTextureVK::Layout::ColorAttachment)
+		return;
+
+	rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+
+	// Descriptors carry the layout, so any binding of this texture has to be rewritten.
+	for (u32 i = 0; i < NUM_TFX_TEXTURES; i++)
+	{
+		if (m_tfx_textures[i] == rt)
+			m_dirty_flags |= (DIRTY_FLAG_TFX_TEXTURE_0 << i);
+	}
+	if (m_utility_texture == rt)
+		m_dirty_flags |= DIRTY_FLAG_UTILITY_TEXTURE;
+}
+
 void GSDeviceVK::OMSetRenderTargets(
 	GSTexture* rt, GSTexture* ds, const GSVector4i& scissor, FeedbackLoopFlag feedback_loop,
 	const GSVector2i& viewport_size)
@@ -5764,7 +5783,10 @@ void GSDeviceVK::OMSetRenderTargets(
 		m_current_framebuffer == VK_NULL_HANDLE)
 	{
 		// framebuffer change or feedback loop enabled/disabled
+		GSTextureVK* const left_rt = m_current_render_target;
 		EndRenderPass();
+		if (left_rt && left_rt != vkRt && left_rt != vkDs && IsDeviceMali())
+			LeaveTargetReadyToSample(left_rt);
 
 		if (vkRt)
 		{
