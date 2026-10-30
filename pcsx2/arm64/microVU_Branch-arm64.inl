@@ -468,6 +468,50 @@ void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
 // constructed once per mVUreset over the whole post-dispatcher cache range.
 static thread_local ptrdiff_t s_mVUblockStartOffset = 0;
 
+// Schedule each episode once it's emitted, keeping block entries at the start of a run. vu-aot,
+// hydrated and probe-tracked episodes are left alone.
+static thread_local std::vector<u8*> s_mVUepisodeEntries;
+static thread_local bool s_mVUepisodeUnschedulable = false;
+
+static bool mVUscheduleEnabled()
+{
+	// ARMSX2_VU_SCHEDULE=0 turns scheduling off.
+	static const bool enabled = [] {
+		const char* e = std::getenv("ARMSX2_VU_SCHEDULE");
+		return !e || std::atoi(e) != 0;
+	}();
+	return enabled;
+}
+
+static a64sched::Stats s_mVUscheduleStats[2];
+
+static void mVUscheduleEpisode(microVU& mVU, u8* codeStart, u32 codeSize)
+{
+	if (!mVUscheduleEnabled() || s_mVUepisodeUnschedulable || codeSize < 8)
+		return;
+
+	// What the pinned bases point at. VuStateStore holds both VURegs and then VU1's data memory, so an
+	// offset off gprVUState past its own VURegs may be data memory, the region gprVUMem points into.
+	static const a64sched::BaseRegion bases[] = {
+		{static_cast<u8>(gprVUState.GetCode()), 0, 1, static_cast<s64>(sizeof(VURegs))},
+		{static_cast<u8>(gprVUMem.GetCode()), 1, 1, INT64_MAX},
+		{static_cast<u8>(gprMVUFlag.GetCode()), 2, 2, INT64_MAX},
+		{static_cast<u8>(gprMVUglob.GetCode()), 3, 3, INT64_MAX},
+	};
+	static const a64sched::MemoryModel memory{bases, std::size(bases)};
+
+	thread_local std::vector<size_t> entries;
+	entries.clear();
+	for (u8* p : s_mVUepisodeEntries)
+	{
+		if (p >= codeStart && p < codeStart + codeSize && ((p - codeStart) & 3) == 0)
+			entries.push_back(static_cast<size_t>(p - codeStart) / 4);
+	}
+	// The program cache records move-wides by offset, so they stay put while it's on.
+	a64sched::Schedule(reinterpret_cast<u32*>(codeStart), codeSize / 4, entries.data(), entries.size(), memory,
+		&s_mVUscheduleStats[mVU.index], mVUPersist::IsRecordingEnabled());
+}
+
 // The write scope covers exactly the persistent MA's buffer span
 // [x86start, physical region end]: every byte a session emits lands in
 // there. Range form, not the whole-arena BeginCodeWrite: in iOS Legacy
@@ -513,6 +557,8 @@ static void mVUopenCodeCache(microVU& mVU)
 	while (armAsm->GetCursorOffset() & 15)
 		armAsm->Nop();
 	s_mVUblockStartOffset = armAsm->GetCursorOffset();
+	s_mVUepisodeEntries.clear();
+	s_mVUepisodeUnschedulable = false;
 
 	// Persisted-JIT recorder: everything emitted until the matching close is
 	// one contiguous, relocatable-as-a-unit chunk. No-op unless recording is
@@ -536,6 +582,9 @@ static void mVUcloseCodeCache(microVU& mVU)
 	// armAsmPtr is the MA's buffer base (= x86start) so the actual block-start
 	// address is x86start + s_mVUblockStartOffset, NOT armAsmPtr.
 	u8* codeStart = armAsmPtr + s_mVUblockStartOffset;
+
+	// After the literal pool is placed and before the recorder copies the bytes.
+	mVUscheduleEpisode(mVU, codeStart, codeSize);
 
 	// Persisted-JIT recorder: finalize (or drop) the chunk. Runs after
 	// FinalizeCode so the captured bytes include any literal pool.

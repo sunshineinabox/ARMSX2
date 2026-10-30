@@ -1325,6 +1325,14 @@ void mVUclose(microVU& mVU)
 	mVUCacheTraceDump(mVU, "shutdown");
 #endif
 
+	if (const a64sched::Stats& s = s_mVUscheduleStats[mVU.index]; s.runs)
+	{
+		Console.WriteLn("microVU%d: scheduled %llu of %llu runs; A55 model %llu -> %llu cycles (%.1f%% fewer).", mVU.index,
+			static_cast<unsigned long long>(s.reordered), static_cast<unsigned long long>(s.runs),
+			static_cast<unsigned long long>(s.cyclesBefore), static_cast<unsigned long long>(s.cyclesAfter),
+			100.0 * (1.0 - static_cast<double>(s.cyclesAfter) / static_cast<double>(s.cyclesBefore)));
+	}
+
 	// Final checkpoint of live programs to the cache before we let
 	// the contentMap go. Mirrors the mVUreset path; harmless if nothing
 	// new has been added since the last reset. The vu-aot tier's plans go to the

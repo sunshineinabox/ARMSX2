@@ -68,6 +68,7 @@ if(ARCH_ARM64)
 	target_sources(core_test PRIVATE arm64_emit_test.cpp)
 	target_sources(core_test PRIVATE arm64_lane_gather_tests.cpp)
 	target_sources(core_test PRIVATE arm64_block_lut_tests.cpp)
+	target_sources(core_test PRIVATE arm64_code_scheduler_tests.cpp)
 endif()
 
 # GSLsfg.cpp only builds with the Vulkan renderer, so its structural-PE-check test follows it.

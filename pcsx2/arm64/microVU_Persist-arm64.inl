@@ -1521,6 +1521,7 @@ namespace mVUPersist
 
 		pxAssert(!armAsm); // caller must not have an open emission episode
 		mVUopenCodeCache(mVU);
+		s_mVUepisodeUnschedulable = true; // hydrated chunks are placed by offset, and their entries come from the payload
 
 		// Where each chunk will land: the copy loop below pads the cursor
 		// offset (from x86start, which need not itself be aligned) to 16 bytes

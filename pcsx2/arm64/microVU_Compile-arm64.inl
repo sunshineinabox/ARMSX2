@@ -929,6 +929,7 @@ __fi void mVUinitFirstPass(mV, uptr pState, u8* thisPtr)
 	// The indirection is kept so an alternate code source can repoint hostEntry
 	// at a prepared block without disturbing the code-cache slot tracking.
 	mVUblock.hostEntry = thisPtr;
+	s_mVUepisodeEntries.push_back(thisPtr);
 
 	// Create block manager if needed, then add this block. Both conditions are
 	// invariant violations — the caller (mVUcompile) unconditionally proceeds
@@ -1442,6 +1443,14 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 	// A region's bail target is microVU's own code for the block.
 	const bool vuAotShadow = vuaot::g_vuAotShadowCompile;
 	vuaot::g_vuAotShadowCompile = false;
+	// vu-aot's own code and the addresses it keeps into microVU's are not the scheduler's to move.
+	if (vuAotRegionHook || vuAotBodyHook || vuAotShadow)
+		s_mVUepisodeUnschedulable = true;
+#ifdef PCSX2_RECOMPILER_TESTS
+	// The divtrace probe records each op's host address range.
+	if (mvu_divtrace::g_enabled.load(std::memory_order_relaxed))
+		s_mVUepisodeUnschedulable = true;
+#endif
 #ifdef PCSX2_RECOMPILER_TESTS
 	const bool vuAotTraceWanted = vuaot::g_mvuBlockHook || vuAotRegionHook || vuAotBodyHook;
 #else
