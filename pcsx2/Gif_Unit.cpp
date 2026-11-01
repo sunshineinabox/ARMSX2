@@ -236,8 +236,21 @@ bool SaveStateBase::gifPathFreeze(u32 path)
 		}
 	}
 	u8* bufferPtr = gifPath.buffer; // Backup current buffer ptr
+	// The struct copy below includes the buffer size and limit; keep this build's instead of the state's.
+	const u32 buffSize = gifPath.buffSize;
+	const u32 buffLimit = gifPath.buffLimit;
 	Freeze(gifPath.mtvu.fakePackets);
 	FreezeMem(&gifPath, sizeof(gifPath) - sizeof(gifPath.mtvu));
+	gifPath.buffSize = buffSize;
+	gifPath.buffLimit = buffLimit;
+	if (gifPath.curSize > buffSize)
+	{
+		Console.Error("GIF path %u: the state holds %u bytes, more than this build's %u-byte buffer", path + 1, gifPath.curSize, buffSize);
+		gifPath.buffer = bufferPtr;
+		gifPath.Reset();
+		m_error = true;
+		return false;
+	}
 	FreezeMem(bufferPtr, gifPath.curSize);
 	gifPath.buffer = bufferPtr;
 	if (!IsSaving())
@@ -262,9 +275,8 @@ bool SaveStateBase::gifFreeze()
 	Freeze(gifUnit.gsSIGNAL);
 	Freeze(gifUnit.gsFINISH);
 	Freeze(gifUnit.lastTranType);
-	gifPathFreeze(GIF_PATH_1);
-	gifPathFreeze(GIF_PATH_2);
-	gifPathFreeze(GIF_PATH_3);
+	if (!gifPathFreeze(GIF_PATH_1) || !gifPathFreeze(GIF_PATH_2) || !gifPathFreeze(GIF_PATH_3))
+		return false;
 	if (!IsSaving())
 	{
 		if (mtvuMode != THREAD_VU1)
