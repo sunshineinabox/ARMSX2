@@ -775,7 +775,7 @@ public:
 	__forceinline GSVector4i srlv16(const GSVector4i& v) const
 	{
 		return GSVector4i(
-			vreinterpretq_s32_s16(vshlq_s16(vreinterpretq_s16_s32(v4s), vnegq_s16(vreinterpretq_s16_s32(v.v4s)))));
+			vreinterpretq_s32_u16(vshlq_u16(vreinterpretq_u16_s32(v4s), vnegq_s16(vreinterpretq_s16_s32(v.v4s)))));
 	}
 
 	template <int i>
@@ -793,7 +793,7 @@ public:
 	__forceinline GSVector4i srav16(const GSVector4i& v) const
 	{
 		return GSVector4i(
-			vreinterpretq_s32_u16(vshlq_u16(vreinterpretq_u16_s32(v4s), vnegq_s16(vreinterpretq_s16_s32(v.v4s)))));
+			vreinterpretq_s32_s16(vshlq_s16(vreinterpretq_s16_s32(v4s), vnegq_s16(vreinterpretq_s16_s32(v.v4s)))));
 	}
 
 	template <int i>

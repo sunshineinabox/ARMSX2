@@ -354,6 +354,8 @@ public:
 		return min(GSVector4(scale));
 	}
 
+	// FMIN/FMAX on purpose: -0 sorts below +0, so the result doesn't depend on order (the vertex trace and
+	// kick kernel rely on that). Callers that can see NaN deal with it themselves.
 	__forceinline GSVector4 min(const GSVector4& a) const
 	{
 		return GSVector4(vminq_f32(v4s, a.v4s));
@@ -361,7 +363,7 @@ public:
 
 	__forceinline GSVector4 max(const GSVector4& a) const
 	{
-    return GSVector4(vmaxq_f32(v4s, a.v4s));
+		return GSVector4(vmaxq_f32(v4s, a.v4s));
 	}
 
 	template <int mask>
@@ -402,9 +404,10 @@ public:
 		return GSVector4(vcombine_f32(vget_low_f32(v4s), vget_low_f32(a.v4s)));
 	}
 
+	// movehl_ps(this, a): a's high half, then this's.
 	__forceinline GSVector4 h2l(const GSVector4& a) const
 	{
-		return GSVector4(vcombine_f32(vget_high_f32(v4s), vget_high_f32(a.v4s)));
+		return GSVector4(vcombine_f32(vget_high_f32(a.v4s), vget_high_f32(v4s)));
 	}
 
 	__forceinline GSVector4 andnot(const GSVector4& v) const

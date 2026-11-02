@@ -9214,8 +9214,10 @@ void GSState::RewriteVerticesIfLargeSTImpl(const GSVector4& large_val, bool chec
 					const float q = (primclass == GS_SPRITE_CLASS) ? m_vertex->buff[i + 1].RGBAQ.Q : stcq.w;
 					stcq = (stcq / q).xyzw(stcq);
 
-					tmin = tmin.min(stcq);
-					tmax = tmax.max(stcq);
+					// minps/maxps's rule written out, so a NaN ST (Q of 0) gets replaced at the next vertex like on
+					// x86.
+					tmin = stcq.blend32(tmin, tmin < stcq);
+					tmax = stcq.blend32(tmax, tmax > stcq);
 				}
 			}
 			m_vt.m_min.t = tmin.xyww() * tsize;

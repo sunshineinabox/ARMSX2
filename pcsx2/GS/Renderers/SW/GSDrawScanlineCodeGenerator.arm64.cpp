@@ -719,8 +719,9 @@ void GSDrawScanlineCodeGenerator::TestZ(const VRegister& temp1, const VRegister&
 			armAsm->Fadd(_temp_z1.V2D(), _temp_z1.V2D(), temp1.V2D());
 
 			// zs = GSVector8i(zl, zh);
-			armAsm->Fcvtzs(v0.V2D(), _temp_z0.V2D());
-			armAsm->Fcvtzs(temp1.V2D(), _temp_z1.V2D());
+			// x86 rounds after the -(2^31 + 0.5 - ulp) bias, which truncates z, so round here too.
+			armAsm->Fcvtns(v0.V2D(), _temp_z0.V2D());
+			armAsm->Fcvtns(temp1.V2D(), _temp_z1.V2D());
 			armAsm->Movi(_vscratch.V4S(), 0x80000000);
 			armAsm->Uzp1(v0.V4S(), v0.V4S(), temp1.V4S());
 
