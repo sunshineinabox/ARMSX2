@@ -111,10 +111,11 @@ namespace
 				const u32 roll = Pick(100);
 				if (roll < 2 && out.size() + 6 < length)
 				{
-					// A vixl literal pool behind a branch over it.
+					// A vixl literal pool behind a branch over it: the marker holds the pool's size in words, itself
+					// included (vixl's LiteralPool::Emit).
 					const u32 words = 1 + Pick(4);
 					out.push_back(0x14000000u | (words + 2));
-					out.push_back(0x5800001Fu | (words << 5));
+					out.push_back(0x5800001Fu | ((words + 1) << 5));
 					for (u32 k = 0; k < words; k++)
 						out.push_back(static_cast<u32>(m_rng()));
 					continue;

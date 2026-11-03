@@ -45,7 +45,7 @@ namespace a64sched
 		u64 uses = 0;
 		s32 offset = 0;
 		s32 target = kNoTarget; // branch or ADR target, in words from this instruction
-		u32 poolWords = 0; // a vixl literal-pool marker: this many data words follow
+		u32 poolWords = 0; // a vixl literal-pool marker: the pool's size in words, this marker included
 		u16 bytes = 0; // bytes the access covers from `offset`
 		Kind kind = Kind::Barrier;
 		u8 latency = 1;

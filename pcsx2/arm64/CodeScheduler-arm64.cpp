@@ -965,8 +965,9 @@ namespace a64sched
 			}
 			if (i.poolWords)
 			{
-				// Skip the pool's data, and treat any code address it holds as an entry point.
-				const size_t end = std::min(words, k + 1 + i.poolWords);
+				// Skip the pool's data, and treat any code address it holds as an entry point. The marker's count
+				// includes the marker itself, so the data is the poolWords - 1 words after it.
+				const size_t end = std::min(words, k + std::max<size_t>(i.poolWords, 1));
 				for (size_t d = k + 1; d < end; d++)
 				{
 					s.insns[d] = Insn();
