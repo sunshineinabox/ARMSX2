@@ -82,9 +82,13 @@ namespace GSVertexKernels
 		uint8x16_t pat_m1;   // XYZF2: {X|Y<<16, Z, -, F}
 		uint8x16_t pat_xyz;  // XYZ2:  {X|Y<<16, Z32} into the low half
 		uint32x4_t q_fixup;  // Q == +0.0 rewrites to FLT_MIN
+		// The run's UV (and FOG) when the layout has no UV register, so it's the same for every vertex. Those
+		// bytes are zero in the pattern, so an ORR drops it in without a per-vertex lane insert.
+		uint32x4_t uv_lane;   // XYZF2: {0, 0, UV, 0}
+		uint64x2_t uvfog_hi;  // XYZ2:  {0, UV | FOG << 32}
 	};
 
-	__forceinline_odr PackedParseConsts MakePackedParseConsts()
+	__forceinline_odr PackedParseConsts MakePackedParseConsts(u64 uvfog)
 	{
 		alignas(16) static constexpr u8 pat_m0[16] = {0, 1, 2, 3, 4, 5, 6, 7, 16, 20, 24, 28, 8, 9, 10, 11};
 		alignas(16) static constexpr u8 pat_m1[16] = {0, 1, 4, 5, 24, 25, 26, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 28, 0xFF, 0xFF, 0xFF};
@@ -96,6 +100,8 @@ namespace GSVertexKernels
 		k.pat_m1 = vld1q_u8(pat_m1);
 		k.pat_xyz = vld1q_u8(pat_xyz);
 		k.q_fixup = vld1q_u32(q_fixup);
+		k.uv_lane = vsetq_lane_u32(static_cast<u32>(uvfog), vdupq_n_u32(0), 2);
+		k.uvfog_hi = vcombine_u64(vdup_n_u64(0), vdup_n_u64(uvfog));
 		return k;
 	}
 
@@ -109,7 +115,8 @@ namespace GSVertexKernels
 		const uint8x16_t xyzf = vld1q_u8(reinterpret_cast<const u8*>(r + 2));
 		const uint8x16x2_t xyzf_pair = {xyzf, vreinterpretq_u8_u32(vshrq_n_u32(vreinterpretq_u32_u8(xyzf), 4))};
 		uint32x4_t v1 = vreinterpretq_u32_u8(vqtbl2q_u8(xyzf_pair, k.pat_m1));
-		v1 = vsetq_lane_u32(uv, v1, 2);
+		(void)uv; // k.uv_lane holds it: MakePackedParseConsts(uv)
+		v1 = vorrq_u32(v1, k.uv_lane);
 
 		m0 = GSVector4i(vreinterpretq_s32_u32(v0));
 		m1 = GSVector4i(vreinterpretq_s32_u32(v1));
@@ -123,7 +130,8 @@ namespace GSVertexKernels
 		v0 = vorrq_u32(v0, vandq_u32(vceqzq_u32(v0), k.q_fixup));
 
 		const uint8x16_t xyz = vqtbl1q_u8(vld1q_u8(reinterpret_cast<const u8*>(r + 2)), k.pat_xyz);
-		const uint64x2_t v1 = vsetq_lane_u64(uvfog, vreinterpretq_u64_u8(xyz), 1);
+		(void)uvfog; // k.uvfog_hi holds it: MakePackedParseConsts(uvfog)
+		const uint64x2_t v1 = vorrq_u64(vreinterpretq_u64_u8(xyz), k.uvfog_hi);
 
 		m0 = GSVector4i(vreinterpretq_s32_u32(v0));
 		m1 = GSVector4i(vreinterpretq_s32_u64(v1));
@@ -131,12 +139,12 @@ namespace GSVertexKernels
 
 	__forceinline_odr void ParsePackedSTQRGBAXYZF2_Neon(const GIFPackedReg* RESTRICT r, u32 uv, GSVector4i& m0, GSVector4i& m1)
 	{
-		ParsePackedSTQRGBAXYZF2_Neon(r, uv, MakePackedParseConsts(), m0, m1);
+		ParsePackedSTQRGBAXYZF2_Neon(r, uv, MakePackedParseConsts(uv), m0, m1);
 	}
 
 	__forceinline_odr void ParsePackedSTQRGBAXYZ2_Neon(const GIFPackedReg* RESTRICT r, u64 uvfog, GSVector4i& m0, GSVector4i& m1)
 	{
-		ParsePackedSTQRGBAXYZ2_Neon(r, uvfog, MakePackedParseConsts(), m0, m1);
+		ParsePackedSTQRGBAXYZ2_Neon(r, uvfog, MakePackedParseConsts(uvfog), m0, m1);
 	}
 #endif // ARCH_ARM64
 
@@ -459,15 +467,19 @@ namespace GSVertexKernels
 				const uint8x16x2_t xyzf_pair = {
 					xyzf, vreinterpretq_u8_u32(vshrq_n_u32(vreinterpretq_u32_u8(xyzf), 4))};
 				uint32x4_t v1 = vreinterpretq_u32_u8(vqtbl2q_u8(xyzf_pair, k.pat_m1));
-				v1 = vsetq_lane_u32(static_cast<u32>(LayoutUVFog<L>(rv, off_a, uvfog)), v1, 2);
+				if constexpr (LayoutHasUV(L))
+					v1 = vsetq_lane_u32(static_cast<u32>(LayoutUVFog<L>(rv, off_a, uvfog)), v1, 2);
+				else
+					v1 = vorrq_u32(v1, k.uv_lane);
 				m1 = GSVector4i(vreinterpretq_s32_u32(v1));
 			}
 			else
 			{
 				const uint8x16_t xyz =
 					vqtbl1q_u8(vld1q_u8(reinterpret_cast<const u8*>(rv + off_xyz)), k.pat_xyz);
-				const uint64x2_t v1 =
-					vsetq_lane_u64(LayoutUVFog<L>(rv, off_a, uvfog), vreinterpretq_u64_u8(xyz), 1);
+				const uint64x2_t v1 = LayoutHasUV(L) ?
+					vsetq_lane_u64(LayoutUVFog<L>(rv, off_a, uvfog), vreinterpretq_u64_u8(xyz), 1) :
+					vorrq_u64(vreinterpretq_u64_u8(xyz), k.uvfog_hi);
 				m1 = GSVector4i(vreinterpretq_s32_u64(v1));
 			}
 		}
@@ -480,7 +492,7 @@ namespace GSVertexKernels
 		u64 uvfog, const GSVector4i& carry, GSVector4i& m0, GSVector4i& m1)
 	{
 #ifdef ARCH_ARM64
-		ParsePackedRecord_Neon<L>(rv, off, uvfog, carry, MakePackedParseConsts(), m0, m1);
+		ParsePackedRecord_Neon<L>(rv, off, uvfog, carry, MakePackedParseConsts(uvfog), m0, m1);
 #else
 		ParsePackedRecord<L>(rv, off, uvfog, carry, m0, m1);
 #endif
@@ -1017,7 +1029,14 @@ namespace GSVertexKernels
 				// {S/Q, T/Q, Q, Q}, mask NaN lanes out of the min/max chains,
 				// record them in tnan.
 				const GSVector4 stq_raw = GSVector4::cast(m0);
+#ifdef ARCH_ARM64
+				// Only S/Q and T/Q are needed, so a two-lane FDIV does (same IEEE results, half the divider time).
+				const float32x4_t raw = stq_raw.v4s;
+				const float32x2_t q2 = vdup_laneq_f32(raw, 3);
+				const GSVector4 stq(vcombine_f32(vdiv_f32(vget_low_f32(raw), q2), q2));
+#else
 				const GSVector4 stq = (stq_raw / stq_raw.wwww()).xyww(stq_raw);
+#endif
 
 				const GSVector4i nan = GSVector4i::cast(stq != stq);
 				const GSVector4 keep = GSVector4::cast(~nan);

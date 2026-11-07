@@ -325,7 +325,7 @@ namespace GSVertexKickKernel
 		// Hoisted out of the loop on purpose: left inside the parse they are
 		// function-local statics that clang rematerializes from the frame every
 		// iteration.
-		const GSVertexKernels::PackedParseConsts kc = GSVertexKernels::MakePackedParseConsts();
+		const GSVertexKernels::PackedParseConsts kc = GSVertexKernels::MakePackedParseConsts(uvfog);
 		const MirrorBounds mb = MakeMirrorBounds(inv.xyof, inv.bounds, band_shift, banded, band_bias_x, band_bias_y);
 #endif
 
@@ -544,8 +544,10 @@ namespace GSVertexKickKernel
 			// never runs ahead of the provisional cursor, so the destination is at
 			// or below the source and a later vertex's source is never written
 			// over; when they coincide (an unbroken run of accepts, or any chunk
-			// with no compaction in it) this is a self-copy the store buffer eats.
-			vbuff[tail] = *prov++;
+			// with no compaction in it) this would be a self-copy, so skip it.
+			if (&vbuff[tail] != prov)
+				vbuff[tail] = *prov;
+			prov++;
 
 			tail++;
 			if ((tail - head) < n)
