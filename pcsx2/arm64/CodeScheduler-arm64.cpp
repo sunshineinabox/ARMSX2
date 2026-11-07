@@ -305,7 +305,13 @@ namespace a64sched
 				return Op(X(rd), X(rn) | X(rm) | kFlags, 1);
 			}
 			if ((w & 0x7FE00000) == 0x1B000000) // MADD/MSUB
+			{
+				// Cortex-A53 erratum 835769: a 64-bit multiply-accumulate right after a load or store can be wrong,
+				// so never move one with a real accumulator.
+				if (((w >> 31) & 1) && Bits(w, 14, 10) != 31)
+					return Insn();
 				return Op(X(rd), X(rn) | X(rm) | X(Bits(w, 14, 10)), 3);
+			}
 			return Insn();
 		}
 
@@ -937,7 +943,7 @@ namespace a64sched
 	}
 
 	void Schedule(u32* code, size_t words, const size_t* entries, size_t entryCount, const MemoryModel& memory,
-		Stats* stats, bool keepMoveWide)
+		Stats* stats, bool keepMoveWide, const void* runsAt)
 	{
 		thread_local Scratch scratch;
 		Scratch& s = scratch;
@@ -947,7 +953,7 @@ namespace a64sched
 		if (stats)
 			stats->words += words;
 
-		const uptr lo = reinterpret_cast<uptr>(code);
+		const uptr lo = reinterpret_cast<uptr>(runsAt ? runsAt : code);
 		const uptr hi = lo + words * sizeof(u32);
 		for (size_t k = 0; k < entryCount; k++)
 			if (entries[k] < words)

@@ -508,8 +508,9 @@ static void mVUscheduleEpisode(microVU& mVU, u8* codeStart, u32 codeSize)
 			entries.push_back(static_cast<size_t>(p - codeStart) / 4);
 	}
 	// The program cache records move-wides by offset, so they stay put while it's on.
-	a64sched::Schedule(reinterpret_cast<u32*>(codeStart), codeSize / 4, entries.data(), entries.size(), memory,
-		&s_mVUscheduleStats[mVU.index], mVUPersist::IsRecordingEnabled());
+	// Write through the writable alias; codeStart is the execute address pool entries are compared with.
+	a64sched::Schedule(reinterpret_cast<u32*>(armGetWritableCodePtr(codeStart)), codeSize / 4, entries.data(),
+		entries.size(), memory, &s_mVUscheduleStats[mVU.index], mVUPersist::IsRecordingEnabled(), codeStart);
 }
 
 // The write scope covers exactly the persistent MA's buffer span

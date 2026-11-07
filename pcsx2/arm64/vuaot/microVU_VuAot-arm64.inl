@@ -2106,6 +2106,8 @@ static void vuAotInstall(microVU& mVU, microProgram& prog, VuAotProgramState& st
 	if (wasOpen)
 		mVUcloseCodeCache(mVU);
 	mVUopenCodeCache(mVU);
+	// vu-aot's region code and the data records in it are not the scheduler's to move (as in mVUcompile).
+	s_mVUepisodeUnschedulable = true;
 
 	struct Placed
 	{
@@ -2383,6 +2385,8 @@ static void vuAotPublishRoot(microVU& mVU, VuAotJob& j)
 	mVU.prog.cur = &prog;
 	mVUcloseCodeCache(mVU);
 	mVUopenCodeCache(mVU);
+	// vu-aot's region code and the data records in it are not the scheduler's to move (as in mVUcompile).
+	s_mVUepisodeUnschedulable = true;
 	vuAotPlace(mVU, j, nullptr);
 	mVUcloseCodeCache(mVU);
 	mVUopenCodeCache(mVU);

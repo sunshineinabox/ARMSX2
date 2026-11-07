@@ -81,6 +81,12 @@ namespace
 		EXPECT_EQ(a64sched::Decode(0x5800013f).poolWords, 9u);
 		EXPECT_EQ(a64sched::Decode(0x90000000).kind, Insn::Kind::Barrier);
 		EXPECT_EQ(a64sched::Decode(0x910043ff).kind, Insn::Kind::Barrier);
+
+		// Cortex-A53 erratum 835769: a 64-bit multiply-accumulate stays where it is; a 64-bit MUL (accumulator
+		// XZR) and a 32-bit MADD still move.
+		EXPECT_EQ(a64sched::Decode(0x9B0A2D28).kind, Insn::Kind::Barrier); // madd x8, x9, x10, x11
+		EXPECT_NE(a64sched::Decode(0x9B0A7D28).kind, Insn::Kind::Barrier); // mul x8, x9, x10
+		EXPECT_NE(a64sched::Decode(0x1B0A2D28).kind, Insn::Kind::Barrier); // madd w8, w9, w10, w11
 	}
 
 	// --- Encoders for the generated sequences and the harness around them. ---

@@ -68,9 +68,9 @@ namespace a64sched
 	};
 
 	/// Reorders the runs in code[0, words). `entries` are word indices entered from outside.
-	/// `keepMoveWide` pins MOVZ/MOVN/MOVK.
+	/// `keepMoveWide` pins MOVZ/MOVN/MOVK; `runsAt` is the execute address when `code` is a writable alias.
 	void Schedule(u32* code, size_t words, const size_t* entries, size_t entryCount, const MemoryModel& memory,
-		Stats* stats = nullptr, bool keepMoveWide = false);
+		Stats* stats = nullptr, bool keepMoveWide = false, const void* runsAt = nullptr);
 
 	/// Timing-model cycles for insns[order[0..count)] from an idle pipeline.
 	u32 ModelCycles(const Insn* insns, const u32* order, size_t count);
