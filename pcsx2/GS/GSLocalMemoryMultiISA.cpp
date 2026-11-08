@@ -234,10 +234,24 @@ void GSLocalMemoryFunctions::WriteImageBlock(GSLocalMemory& mem, int l, int r, i
 	u32 bp = BITBLTBUF.DBP;
 	u32 bw = BITBLTBUF.DBW;
 
+#if defined(ARCH_ARM64)
+	// The source is usually cold by now, so prefetch two lines ahead when a row crosses into a new line.
+	constexpr int bits = (psm == PSMCT32 || psm == PSMZ32) ? 32 : (psm == PSMT8) ? 8 : (psm == PSMT4) ? 4 : 16;
+#endif
+
 	for (int offset = srcpitch * bsy; h >= bsy; h -= bsy, y += bsy, src += offset)
 	{
 		for (int x = l; x < r; x += bsx)
 		{
+#if defined(ARCH_ARM64)
+			const int xb = x * bits / 8;
+			if ((xb & 63) == 0)
+			{
+				const u8* ahead = src + xb + 128;
+				for (int row = 0; row < bsy; row++)
+					__builtin_prefetch(ahead + row * srcpitch);
+			}
+#endif
 			switch (psm)
 			{
 				case PSMCT32: GSBlock::WriteBlock32<alignment, 0xffffffff>(mem.BlockPtr32(x, y, bp, bw), &src[x * 4], srcpitch); break;
